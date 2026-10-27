@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: kvitto
+          POSTGRES_USER: kvitto
+          POSTGRES_PASSWORD: kvitto
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U kvitto -d kvitto"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 15
+    env:
+      DATABASE_URL: postgresql+psycopg://kvitto:kvitto@localhost:5432/kvitto
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install ".[dev]"
+      - name: Lint
+        run: ruff check .
+      - name: Apply PostgreSQL migration
+        run: alembic upgrade head
+      - name: Test
+        run: pytest -q
